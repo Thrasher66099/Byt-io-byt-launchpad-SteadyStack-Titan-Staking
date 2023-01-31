@@ -1260,7 +1260,7 @@ contract NTCitizenDeploy is ERC1155, IERC721Receiver, ReentrancyGuard, Ownable {
     address public SSTContract;
     bool public stakingOpen;
     uint256 public currentMintableToken;
-    uint256[] public stakingLengths = [30 days, 90 days, 180 days, 365 days];
+    uint256[] public stakingLengths = [30 days, 90 days, 180 days, 365 days, 1095 days];
 
     mapping(address => bool) public admins;
     mapping(address => bool) public approvedBurningContracts;
@@ -1310,17 +1310,15 @@ contract NTCitizenDeploy is ERC1155, IERC721Receiver, ReentrancyGuard, Ownable {
     function unstakeTitan(uint256 titanId)public nonReentrant 
     {
         require(_msgSender() == stakedTokenOwner[titanId], "You do not own that token");
+        require(tokenStakeCompletionDate[titanId] > block.timestamp, "Token not ready to unstake");
+        require(tokenStakeCompletionDate[titanId] > 0, "Token not staked");
 
-        if(tokenStakeCompletionDate[titanId] > 0 && tokenStakeCompletionDate[titanId] > block.timestamp)
-        {
-            IERC721 _sstContract = IERC721(SSTContract);
-            _sstContract.transferFrom(address(this), _msgSender(), titanId);
-            _mint(_msgSender(), currentMintableToken, 1, "");
-            --countOfTokensStakedByOwner[_msgSender()];
-            delete selectedStakingRewardsByToken[titanId];
-            delete tokenStakeCompletionDate[titanId];
-            delete stakedTokenOwner[titanId];
-        }
+        IERC721 _sstContract = IERC721(SSTContract);
+        _sstContract.transferFrom(address(this), _msgSender(), titanId);
+        --countOfTokensStakedByOwner[_msgSender()];
+        delete selectedStakingRewardsByToken[titanId];
+        delete tokenStakeCompletionDate[titanId];
+        delete stakedTokenOwner[titanId];
     }
 
     function titanValidated(uint256 titanId) internal view returns (bool) 
@@ -1349,10 +1347,11 @@ contract NTCitizenDeploy is ERC1155, IERC721Receiver, ReentrancyGuard, Ownable {
         approvedBurningContracts[burningContract] = !approvedBurningContracts[burningContract];
     }
 
-    function burn(address _from, uint256 tokenId, uint256 _amount) external {
+    function burn(address _from, uint256 tokenId, uint256 _amount) external 
+    {
 		require(approvedBurningContracts[msg.sender]);
 		_burn(_from, tokenId, _amount);
-	}
+    }
 
     function name() public view returns (string memory) 
     {
@@ -1397,6 +1396,7 @@ contract NTCitizenDeploy is ERC1155, IERC721Receiver, ReentrancyGuard, Ownable {
     constructor() ERC1155("") Ownable() {
         _name = "Soulbound Titan";
         _symbol = "SBTTN";
+        admins[owner()] = true;
         //SSTContract = ;
     }
 }
